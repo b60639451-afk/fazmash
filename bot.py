@@ -16,8 +16,11 @@ FazMash — Телеграм-бот для конкурсов с перебив�
 import asyncio
 import json
 import logging
+import os
 import pathlib
+import threading
 import time
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from telegram import ChatMember, InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ChatMemberStatus
 from telegram.ext import (
@@ -564,7 +567,37 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     )
 
 
+# ==================== HTTP СЕРВЕР ДЛЯ RENDER (HEALTH CHECK) ====================
+
+class HealthCheckHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-type", "text/plain; charset=utf-8")
+        self.end_headers()
+        self.wfile.write(b"OK")
+
+    def do_HEAD(self):
+        self.send_response(200)
+        self.send_header("Content-type", "text/plain; charset=utf-8")
+        self.end_headers()
+
+    def log_message(self, format, *args):
+        # Отключаем постоянный вывод регулярных пингов от Render в лог
+        pass
+
+
+def run_http_server():
+    port = int(os.environ.get("PORT", 10000))
+    server = HTTPServer(("0.0.0.0", port), HealthCheckHandler)
+    logger.info("Health check HTTP-сервер запущен на порту %s", port)
+    server.serve_forever()
+
+
 def main() -> None:
+    # Запуск фонового HTTP-сервера для Render
+    http_thread = threading.Thread(target=run_http_server, daemon=True)
+    http_thread.start()
+
     app = (
         ApplicationBuilder()
         .token(TOKEN)
